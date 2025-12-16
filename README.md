@@ -1,8 +1,10 @@
-# hecs
+# hecs (fork)
 
 [![Documentation](https://docs.rs/hecs/badge.svg)](https://docs.rs/hecs/)
 [![Crates.io](https://img.shields.io/crates/v/hecs.svg)](https://crates.io/crates/hecs)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE-APACHE)
+
+*This is a minimal fork that adds some minor changes.*
 
 hecs provides a high-performance, minimalist entity-component-system (ECS)
 world. It is a library, not a framework. In place of an explicit "System"
