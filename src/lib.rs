@@ -97,7 +97,7 @@ pub use query_one::QueryOne;
 pub use take::TakenEntity;
 pub use world::{
     ArchetypesGeneration, Component, ComponentError, Iter, QueryOneError, SpawnBatchIter,
-    SpawnColumnBatchIter, World,
+    SpawnColumnBatchIter, World, WorldInterface
 };
 
 // Unstable implementation details needed by the macros
