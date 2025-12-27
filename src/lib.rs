@@ -84,7 +84,7 @@ pub use bundle::{
     DynamicBundleClone, MissingComponent,
 };
 pub use change_tracker::{ChangeTracker, Changes};
-pub use command_buffer::CommandBuffer;
+pub use command_buffer::{CommandBuffer, UserCommand};
 pub use entities::{Entity, NoSuchEntity};
 pub use entity_builder::{BuiltEntity, BuiltEntityClone, EntityBuilder, EntityBuilderClone};
 pub use entity_ref::{ComponentRef, ComponentRefShared, EntityRef, Ref, RefMut};

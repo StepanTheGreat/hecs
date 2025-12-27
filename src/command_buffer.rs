@@ -10,6 +10,21 @@ use crate::{align, DynamicBundle};
 use crate::{Bundle, Entity};
 use crate::{Component, World, WorldInterface};
 
+/// A customly recorded user commands that can apply operations on the world
+pub trait UserCommand {
+    /// The type of the world on which this user command can be run
+    type World: WorldInterface;
+
+    /// Apply a custom user command onto the world
+    fn apply(self, world: &mut Self::World);
+}
+
+impl UserCommand for () {
+    type World = World;
+
+    fn apply(self, _: &mut Self::World) {}
+}
+
 /// Records operations for future application to a [`World`]
 ///
 /// Useful when operations cannot be applied directly due to ordering concerns or borrow checking.
@@ -23,8 +38,8 @@ use crate::{Component, World, WorldInterface};
 /// cmd.run_on(&mut world); // cmd can now be reused
 /// assert_eq!(*world.get::<&i32>(entity).unwrap(), 42);
 /// ```
-pub struct CommandBuffer<W: WorldInterface = World> {
-    cmds: Vec<Cmd<W>>,
+pub struct CommandBuffer<U: UserCommand = ()> {
+    cmds: Vec<Cmd<U>>,
     storage: NonNull<u8>,
     layout: Layout,
     cursor: usize,
@@ -32,9 +47,16 @@ pub struct CommandBuffer<W: WorldInterface = World> {
     ids: Vec<TypeId>,
 }
 
-impl<W: WorldInterface> CommandBuffer<W> {
+impl CommandBuffer {
     /// Create an empty command buffer
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl<U: UserCommand> CommandBuffer<U> {
+    /// Create an empty command buffer with user command support
+    pub fn new_user() -> CommandBuffer<U> {
         Self::default()
     }
 
@@ -99,12 +121,12 @@ impl<W: WorldInterface> CommandBuffer<W> {
     /// When removing a single component, see [`remove_one`](Self::remove_one) for convenience.
     pub fn remove<T: Bundle + 'static>(&mut self, ent: Entity) {
 
-        fn remove_bundle_and_ignore_result<T: Bundle + 'static, W: WorldInterface>(world: &mut W, ents: Entity) {
+        fn remove_bundle_and_ignore_result<T: Bundle + 'static, U: UserCommand>(world: &mut U::World, ents: Entity) {
             let _ = world.remove::<T>(ents);
         }
 
         self.cmds.push(Cmd::Remove(RemovedComps {
-            remove: remove_bundle_and_ignore_result::<T, W>,
+            remove: remove_bundle_and_ignore_result::<T, U>,
             entity: ent,
         }));
     }
@@ -138,7 +160,7 @@ impl<W: WorldInterface> CommandBuffer<W> {
     }
 
     /// Run recorded commands on `world`, clearing the command buffer
-    pub fn run_on(&mut self, world: &mut W) {
+    pub fn run_on(&mut self, world: &mut U::World) {
         for i in 0..self.cmds.len() {
             match mem::replace(&mut self.cmds[i], Cmd::Despawn(Entity::DANGLING)) {
                 Cmd::SpawnOrInsert(entity) => {
@@ -159,6 +181,9 @@ impl<W: WorldInterface> CommandBuffer<W> {
                 Cmd::Despawn(entity) => {
                     let _ = world.despawn(entity);
                 }
+                Cmd::User(user_command) => {
+                    user_command.apply(world);
+                }
             }
         }
         // Wipe out component references so `clear` doesn't try to double-free
@@ -167,7 +192,7 @@ impl<W: WorldInterface> CommandBuffer<W> {
         self.clear();
     }
 
-    fn build(&mut self, components: Range<usize>) -> RecordedEntity<'_, W> {
+    fn build(&mut self, components: Range<usize>) -> RecordedEntity<'_, U> {
         self.ids.clear();
         self.ids.extend(
             self.components[components.clone()]
@@ -193,10 +218,10 @@ impl<W: WorldInterface> CommandBuffer<W> {
     }
 }
 
-unsafe impl<W: WorldInterface> Send for CommandBuffer<W> {}
-unsafe impl<W: WorldInterface> Sync for CommandBuffer<W> {}
+unsafe impl<U: UserCommand> Send for CommandBuffer<U> {}
+unsafe impl<U: UserCommand> Sync for CommandBuffer<U> {}
 
-impl<W: WorldInterface> Drop for CommandBuffer<W> {
+impl<U: UserCommand> Drop for CommandBuffer<U> {
     fn drop(&mut self) {
         self.clear();
         if self.layout.size() != 0 {
@@ -207,7 +232,7 @@ impl<W: WorldInterface> Drop for CommandBuffer<W> {
     }
 }
 
-impl<W: WorldInterface> Default for CommandBuffer<W> {
+impl<U: UserCommand> Default for CommandBuffer<U> {
     /// Create an empty buffer
     fn default() -> Self {
         Self {
@@ -223,12 +248,12 @@ impl<W: WorldInterface> Default for CommandBuffer<W> {
 
 /// The output of an '[CommandBuffer]` suitable for passing to
 /// [`World::spawn_into`](crate::World::spawn_into)
-struct RecordedEntity<'a, W: WorldInterface> {
-    cmd: &'a mut CommandBuffer<W>,
+struct RecordedEntity<'a, U: UserCommand> {
+    cmd: &'a mut CommandBuffer<U>,
     components: Range<usize>,
 }
 
-unsafe impl<W: WorldInterface> DynamicBundle for RecordedEntity<'_, W> {
+unsafe impl<U: UserCommand> DynamicBundle for RecordedEntity<'_, U> {
     fn with_ids<T>(&self, f: impl FnOnce(&[TypeId]) -> T) -> T {
         f(&self.cmd.ids)
     }
@@ -250,7 +275,7 @@ unsafe impl<W: WorldInterface> DynamicBundle for RecordedEntity<'_, W> {
     }
 }
 
-impl<W: WorldInterface> Drop for RecordedEntity<'_, W> {
+impl<U: UserCommand> Drop for RecordedEntity<'_, U> {
     fn drop(&mut self) {
         // If `put` was never called, we still need to drop this entity's components and discard
         // their info.
@@ -286,10 +311,13 @@ struct RemovedComps<W: WorldInterface> {
 }
 
 /// A buffered command
-enum Cmd<W: WorldInterface> {
+enum Cmd<U: UserCommand> {
     SpawnOrInsert(EntityIndex),
-    Remove(RemovedComps<W>),
-    Despawn(Entity)
+    Remove(RemovedComps<U::World>),
+    Despawn(Entity),
+
+    #[allow(unused)]
+    User(U)
 }
 
 #[cfg(test)]
@@ -300,8 +328,6 @@ mod tests {
     fn populate_archetypes() {
         let mut world = World::new();
         let mut buffer = CommandBuffer::new();
-
-        // buffer.user_command(());
 
         let ent = world.reserve_entity();
         let enta = world.reserve_entity();
