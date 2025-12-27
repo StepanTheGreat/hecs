@@ -159,6 +159,11 @@ impl<U: UserCommand> CommandBuffer<U> {
         }));
     }
 
+    /// Push a new user command onto the command buffer
+    pub fn user_command(&mut self, command: U) {
+        self.cmds.push(Cmd::User(command));
+    }
+
     /// Run recorded commands on `world`, clearing the command buffer
     pub fn run_on(&mut self, world: &mut U::World) {
         for i in 0..self.cmds.len() {
@@ -315,8 +320,6 @@ enum Cmd<U: UserCommand> {
     SpawnOrInsert(EntityIndex),
     Remove(RemovedComps<U::World>),
     Despawn(Entity),
-
-    #[allow(unused)]
     User(U)
 }
 
