@@ -24,34 +24,36 @@ use crate::{
 };
 
 /// The most basic world operations. The purpose of this trait is to be able to generially perform buffered operations on any world
+/// 
+/// Methods have an `i` prefix to help distinguish it between the world's methods
 pub trait WorldInterface {
     /// Spawn an entity and receive its id
-    fn spawn(&mut self, components: impl DynamicBundle) -> Entity;
+    fn i_spawn(&mut self, components: impl DynamicBundle) -> Entity;
 
     /// Insert components into an existing entity id
-    fn insert(&mut self, entity: Entity, components: impl DynamicBundle) -> Result<(), NoSuchEntity>;
+    fn i_insert(&mut self, entity: Entity, components: impl DynamicBundle) -> Result<(), NoSuchEntity>;
 
     /// Despawn an entity
-    fn despawn(&mut self, entity: Entity) -> Result<(), NoSuchEntity>;
+    fn i_despawn(&mut self, entity: Entity) -> Result<(), NoSuchEntity>;
 
     /// Remove a bundle of components from an entity
-    fn remove<T: Bundle + 'static>(&mut self, entity: Entity) -> Result<T, ComponentError>;
+    fn i_remove<T: Bundle + 'static>(&mut self, entity: Entity) -> Result<T, ComponentError>;
 }
 
 impl WorldInterface for World {
-    fn spawn(&mut self, components: impl DynamicBundle) -> Entity {
+    fn i_spawn(&mut self, components: impl DynamicBundle) -> Entity {
         self.spawn(components)
     }
 
-    fn insert(&mut self, entity: Entity, components: impl DynamicBundle) -> Result<(), NoSuchEntity> {
+    fn i_insert(&mut self, entity: Entity, components: impl DynamicBundle) -> Result<(), NoSuchEntity> {
         self.insert(entity, components)
     }
 
-    fn despawn(&mut self, entity: Entity) -> Result<(), NoSuchEntity> {
+    fn i_despawn(&mut self, entity: Entity) -> Result<(), NoSuchEntity> {
         self.despawn(entity)
     }
 
-    fn remove<T: Bundle + 'static>(&mut self, entity: Entity) -> Result<T, ComponentError> {
+    fn i_remove<T: Bundle + 'static>(&mut self, entity: Entity) -> Result<T, ComponentError> {
         self.remove::<T>(entity)
     }
 }

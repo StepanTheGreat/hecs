@@ -122,7 +122,7 @@ impl<U: UserCommand> CommandBuffer<U> {
     pub fn remove<T: Bundle + 'static>(&mut self, ent: Entity) {
 
         fn remove_bundle_and_ignore_result<T: Bundle + 'static, U: UserCommand>(world: &mut U::World, ents: Entity) {
-            let _ = world.remove::<T>(ents);
+            let _ = world.i_remove::<T>(ents);
         }
 
         self.cmds.push(Cmd::Remove(RemovedComps {
@@ -173,10 +173,10 @@ impl<U: UserCommand> CommandBuffer<U> {
                     match entity.entity {
                         Some(entity) => {
                             // If `entity` no longer exists, quietly drop the components.
-                            let _ = world.insert(entity, components);
+                            let _ = world.i_insert(entity, components);
                         }
                         None => {
-                            world.spawn(components);
+                            world.i_spawn(components);
                         }
                     }
                 }
@@ -184,7 +184,7 @@ impl<U: UserCommand> CommandBuffer<U> {
                     (remove.remove)(world, remove.entity);
                 }
                 Cmd::Despawn(entity) => {
-                    let _ = world.despawn(entity);
+                    let _ = world.i_despawn(entity);
                 }
                 Cmd::User(user_command) => {
                     user_command.apply(world);
